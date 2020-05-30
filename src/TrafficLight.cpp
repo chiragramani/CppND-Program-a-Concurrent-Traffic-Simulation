@@ -19,9 +19,6 @@ T MessageQueue<T>::receive()
 template <typename T>
 void MessageQueue<T>::send(T &&msg)
 {
-    // simulate some work
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-
     std::lock_guard<std::mutex> lck_guard(_mutex);
     _queue.emplace_back(std::move(msg));
     _cond.notify_one();
@@ -80,18 +77,17 @@ void TrafficLight::cycleThroughPhases()
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
         /// Compute the cycle duration.
-        int durationInSeconds = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - last_timePoint).count();
+       
+        int durationInSeconds =  std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - last_timePoint).count();
         if (durationInSeconds >= cycle_duration)
         {
             // Toggle current Traffic Light Phase.
             std::unique_lock<std::mutex> _uLock(_mutex);
             _currentPhase = _currentPhase == TrafficLightPhase::green ? TrafficLightPhase::red : TrafficLightPhase::green;
-            TrafficLightPhase message = _currentPhase;
             _uLock.unlock();
 
             // Sending the message.
-            std::future<void> _ftr = std::async(std::launch::async, &MessageQueue<TrafficLightPhase>::send, _queue, std::move(message));
-            _ftr.wait();
+            _queue->send(std::move(_currentPhase));
 
             // Reset the cycle duration and update the last_timestamp;
             cycle_duration = dist(mt);
